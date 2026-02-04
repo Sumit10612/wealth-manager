@@ -12,6 +12,10 @@ RUN npm ci
 # Copy source code
 COPY frontend . 
 
+# Generate PWA icons
+RUN npm install canvas
+RUN node generate-icons.js
+
 # Build app
 RUN npm run build
 

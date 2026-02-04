@@ -8,6 +8,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
     units: '',
     nav: '',
     amount: '',
+    brokerage: '',
     date: new Date().toISOString().split('T')[0],
     platform: '',
     account: '',
@@ -17,6 +18,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
   const [schemeNames, setSchemeNames] = useState([]);
   const [platforms, setPlatforms] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [lastEditedField, setLastEditedField] = useState(null);
 
   const apiUrl = import.meta.env.VITE_API_URL || '';
 
@@ -33,6 +35,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
         units: transaction.units,
         nav: transaction.nav,
         amount: transaction.amount,
+        brokerage: transaction.brokerage || '',
         date: transaction.date,
         platform: transaction.platform || '',
         account: transaction.account || '',
@@ -76,10 +79,49 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'units' || name === 'nav' || name === 'amount' ? parseFloat(value) || '' : value,
-    }));
+    const parsedValue = name === 'units' || name === 'nav' || name === 'amount' || name === 'brokerage' ? parseFloat(value) || '' : value;
+    
+    setFormData(prev => {
+      const updated = {
+        ...prev,
+        [name]: parsedValue,
+      };
+
+      // Business logic for amount/units/nav/brokerage
+      if (name === 'units' || name === 'nav') {
+        // When units or nav changes, recalculate amount = units * nav
+        const units = name === 'units' ? parsedValue : prev.units;
+        const nav = name === 'nav' ? parsedValue : prev.nav;
+        
+        if (units && nav) {
+          const calculatedAmount = units * nav;
+          // If brokerage exists, add it to the amount
+          const brokerageValue = prev.brokerage || 0;
+          updated.amount = calculatedAmount + brokerageValue;
+        }
+      } else if (name === 'amount') {
+        // When amount is manually set, calculate brokerage as difference
+        const units = prev.units;
+        const nav = prev.nav;
+        
+        if (units && nav) {
+          const calculatedAmount = units * nav;
+          updated.brokerage = Math.round((parsedValue - calculatedAmount) * 100) / 100;
+        }
+      } else if (name === 'brokerage') {
+        // When brokerage is updated, recalculate amount
+        const units = prev.units;
+        const nav = prev.nav;
+        
+        if (units && nav) {
+          const calculatedAmount = units * nav;
+          updated.amount = calculatedAmount + parsedValue;
+        }
+      }
+
+      setLastEditedField(name);
+      return updated;
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -266,6 +308,21 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white dark:bg-gray-700 dark:text-gray-100"
             placeholder="0.00"
           />
+        </div>
+
+        {/* Brokerage */}
+        <div>
+          <label className="block text-gray-700 dark:text-gray-300 font-semibold mb-2 text-sm">Brokerage</label>
+          <input
+            type="number"
+            name="brokerage"
+            value={formData.brokerage}
+            onChange={handleChange}
+            step="0.01"
+            className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white dark:bg-gray-700 dark:text-gray-100"
+            placeholder="0.00"
+          />
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Automatically calculated as difference between amount and (units × NAV)</p>
         </div>
       </form>
 

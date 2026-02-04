@@ -77,6 +77,7 @@ function initializeDatabase() {
       if (!err && columns) {
         const hasPlatform = columns.some(col => col.name === 'platform');
         const hasAccount = columns.some(col => col.name === 'account');
+        const hasBrokerage = columns.some(col => col.name === 'brokerage');
         
         if (!hasPlatform) {
           db.run(`ALTER TABLE transactions ADD COLUMN platform TEXT`, (err) => {
@@ -89,6 +90,13 @@ function initializeDatabase() {
           db.run(`ALTER TABLE transactions ADD COLUMN account TEXT`, (err) => {
             if (err) console.log('Account column already exists or error:', err.message);
             else console.log('Added account column to transactions table');
+          });
+        }
+
+        if (!hasBrokerage) {
+          db.run(`ALTER TABLE transactions ADD COLUMN brokerage REAL DEFAULT 0`, (err) => {
+            if (err) console.log('Brokerage column already exists or error:', err.message);
+            else console.log('Added brokerage column to transactions table');
           });
         }
       }
@@ -271,16 +279,16 @@ app.get('/api/transactions/:id', authenticate, (req, res) => {
 
 // Create transaction
 app.post('/api/transactions', authenticate, (req, res) => {
-  const { scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account } = req.body;
+  const { scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account, brokerage } = req.body;
 
   if (!scheme_name || !asset_type || !transaction_type || units === undefined || nav === undefined || amount === undefined || !date) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
   db.run(
-    `INSERT INTO transactions (scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [scheme_name, asset_type, transaction_type, units, nav, amount, date, platform || null, account || null],
+    `INSERT INTO transactions (scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account, brokerage)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [scheme_name, asset_type, transaction_type, units, nav, amount, date, platform || null, account || null, brokerage || 0],
     function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });
@@ -292,12 +300,12 @@ app.post('/api/transactions', authenticate, (req, res) => {
 
 // Update transaction
 app.put('/api/transactions/:id', authenticate, (req, res) => {
-  const { scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account } = req.body;
+  const { scheme_name, asset_type, transaction_type, units, nav, amount, date, platform, account, brokerage } = req.body;
 
   db.run(
-    `UPDATE transactions SET scheme_name = ?, asset_type = ?, transaction_type = ?, units = ?, nav = ?, amount = ?, date = ?, platform = ?, account = ?
+    `UPDATE transactions SET scheme_name = ?, asset_type = ?, transaction_type = ?, units = ?, nav = ?, amount = ?, date = ?, platform = ?, account = ?, brokerage = ?
      WHERE id = ?`,
-    [scheme_name, asset_type, transaction_type, units, nav, amount, date, platform || null, account || null, req.params.id],
+    [scheme_name, asset_type, transaction_type, units, nav, amount, date, platform || null, account || null, brokerage || 0, req.params.id],
     function(err) {
       if (err) {
         return res.status(500).json({ error: err.message });

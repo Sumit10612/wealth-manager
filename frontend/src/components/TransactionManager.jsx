@@ -270,15 +270,18 @@ const TransactionManager = ({ token, onLogout }) => {
   const calculateSummary = () => {
     const summary = {
       total: 0,
+      totalBrokerage: 0,
       byAssetType: {}
     };
 
     transactions.forEach(transaction => {
       const amount = parseFloat(transaction.amount);
+      const brokerage = parseFloat(transaction.brokerage) || 0;
       const multiplier = transaction.transaction_type === 'Sell' ? -1 : 1;
       const value = amount * multiplier;
 
       summary.total += value;
+      summary.totalBrokerage += brokerage * multiplier;
 
       if (!summary.byAssetType[transaction.asset_type]) {
         summary.byAssetType[transaction.asset_type] = 0;
@@ -330,6 +333,7 @@ const TransactionManager = ({ token, onLogout }) => {
                   <div className="flex flex-col justify-center border-r border-white border-opacity-20 pr-3">
                     <div className="text-xs font-medium opacity-90">Total Portfolio</div>
                     <div className="text-2xl font-bold mt-0.5">₹{summary.total.toFixed(2)}</div>
+                    <div className="text-xs opacity-75 mt-1">Brokerage: ₹{summary.totalBrokerage.toFixed(2)}</div>
                     <div className="text-xs opacity-75 mt-0.5">{transactions.length} txns</div>
                   </div>
                   
@@ -354,6 +358,7 @@ const TransactionManager = ({ token, onLogout }) => {
                 <div className="text-sm font-medium opacity-90">Total Portfolio</div>
                 <div className="text-2xl font-bold mt-2">₹{summary.total.toFixed(2)}</div>
                 <div className="text-xs opacity-75 mt-1">{transactions.length} transactions</div>
+                <div className="text-xs opacity-75 mt-2">Brokerage: ₹{summary.totalBrokerage.toFixed(2)}</div>
               </div>
 
               {/* Asset Type Cards */}
