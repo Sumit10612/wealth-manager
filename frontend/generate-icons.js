@@ -1,33 +1,31 @@
-// Script to generate PWA icons using canvas
+// Script to generate PWA icons using Sharp (no native compilation needed)
 // Run with: node generate-icons.js
 
-const { createCanvas } = require('canvas');
-const fs = require('fs');
-const path = require('path');
+import sharp from 'sharp';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-function generateIcon(size) {
-  const canvas = createCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-  
-  // Fill background
-  ctx.fillStyle = '#2563eb';
-  ctx.fillRect(0, 0, size, size);
-  
-  // Draw white W letter
-  ctx.fillStyle = '#ffffff';
-  ctx.font = `bold ${Math.round(size * 0.55)}px Arial`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('W', size / 2, size / 2);
-  
-  // Save as PNG
-  const buffer = canvas.toBuffer('image/png');
-  const filename = path.join(__dirname, 'public', `icon-${size}.png`);
-  fs.writeFileSync(filename, buffer);
-  console.log(`Generated ${filename}`);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Create SVG icon
+const svgIcon = `<svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" fill="#2563eb"/>
+  <text x="256" y="256" font-size="280" font-weight="bold" fill="white" text-anchor="middle" dy=".35em" font-family="Arial">W</text>
+</svg>`;
+
+const publicDir = path.join(__dirname, 'public');
+if (!fs.existsSync(publicDir)) {
+  fs.mkdirSync(publicDir, { recursive: true });
 }
 
 // Generate icons
-generateIcon(192);
-generateIcon(512);
-console.log('Icons generated successfully!');
+Promise.all([192, 512].map(size =>
+  sharp(Buffer.from(svgIcon))
+    .resize(size, size)
+    .png()
+    .toFile(path.join(publicDir, `icon-${size}.png`))
+    .then(() => console.log(`Generated icon-${size}.png`))
+))
+.then(() => console.log('Icons generated successfully!'))
+.catch(err => { console.error('Error:', err); process.exit(1); });

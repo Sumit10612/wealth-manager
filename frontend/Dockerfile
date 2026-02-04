@@ -13,7 +13,7 @@ RUN npm ci
 COPY frontend . 
 
 # Generate PWA icons
-RUN npm install canvas
+RUN npm install sharp
 RUN node generate-icons.js
 
 # Build app
