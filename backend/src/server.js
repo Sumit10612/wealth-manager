@@ -54,6 +54,15 @@ function initializeDatabase() {
       )
     `);
 
+    // Schemes table
+    db.run(`
+      CREATE TABLE IF NOT EXISTS schemes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Transactions table
     db.run(`
       CREATE TABLE IF NOT EXISTS transactions (
@@ -228,9 +237,40 @@ app.delete('/api/accounts/:id', authenticate, (req, res) => {
   });
 });
 
+// Get all schemes
+app.get('/api/schemes', authenticate, (req, res) => {
+  db.all(`SELECT * FROM schemes ORDER BY name`, (err, rows) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json(rows);
+  });
+});
+
+// Add scheme
+app.post('/api/schemes', authenticate, (req, res) => {
+  const { name } = req.body;
+  db.run(`INSERT INTO schemes (name) VALUES (?)`, [name], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ id: this.lastID, name });
+  });
+});
+
+// Delete scheme
+app.delete('/api/schemes/:id', authenticate, (req, res) => {
+  db.run(`DELETE FROM schemes WHERE id = ?`, [req.params.id], function(err) {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ success: true });
+  });
+});
+
 // Get all transactions
 app.get('/api/transactions', authenticate, (req, res) => {
-  const { assetType, platform, account } = req.query;
+  const { assetType, platform, account, scheme } = req.query;
   let query = `SELECT * FROM transactions`;
   let params = [];
   let conditions = [];
@@ -248,6 +288,11 @@ app.get('/api/transactions', authenticate, (req, res) => {
   if (account) {
     conditions.push(`account = ?`);
     params.push(account);
+  }
+
+  if (scheme) {
+    conditions.push(`scheme_name = ?`);
+    params.push(scheme);
   }
 
   if (conditions.length > 0) {

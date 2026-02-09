@@ -45,14 +45,13 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
 
   const fetchSchemeNames = async () => {
     try {
-      // Fetch unique scheme names from transactions
-      const transactionsResponse = await fetch(`${apiUrl}/api/transactions`, {
+      // Fetch schemes from API
+      const schemesResponse = await fetch(`${apiUrl}/api/schemes`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
-      if (transactionsResponse.ok) {
-        const transactions = await transactionsResponse.json();
-        const uniqueSchemes = [...new Set(transactions.map(t => t.scheme_name))];
-        setSchemeNames(uniqueSchemes);
+      if (schemesResponse.ok) {
+        const schemesData = await schemesResponse.json();
+        setSchemeNames(schemesData.map(s => s.name));
       }
 
       // Fetch platforms from API
@@ -87,37 +86,16 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
         [name]: parsedValue,
       };
 
-      // Business logic for amount/units/nav/brokerage
-      if (name === 'units' || name === 'nav') {
-        // When units or nav changes, recalculate amount = units * nav
+      // Only auto-calculate amount when units or nav changes
+      if ((name === 'units' || name === 'nav') && !lastEditedField?.includes('amount')) {
         const units = name === 'units' ? parsedValue : prev.units;
         const nav = name === 'nav' ? parsedValue : prev.nav;
         
         if (units && nav) {
-          const calculatedAmount = units * nav;
-          // If brokerage exists, add it to the amount
-          const brokerageValue = prev.brokerage || 0;
-          updated.amount = calculatedAmount + brokerageValue;
-        }
-      } else if (name === 'amount') {
-        // When amount is manually set, calculate brokerage as difference
-        const units = prev.units;
-        const nav = prev.nav;
-        
-        if (units && nav) {
-          const calculatedAmount = units * nav;
-          updated.brokerage = Math.round((parsedValue - calculatedAmount) * 100) / 100;
-        }
-      } else if (name === 'brokerage') {
-        // When brokerage is updated, recalculate amount
-        const units = prev.units;
-        const nav = prev.nav;
-        
-        if (units && nav) {
-          const calculatedAmount = units * nav;
-          updated.amount = calculatedAmount + parsedValue;
+          updated.amount = units * nav;
         }
       }
+      // User can freely adjust amount and brokerage independently - no auto-recalculation
 
       setLastEditedField(name);
       return updated;
@@ -322,7 +300,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
             className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white dark:bg-gray-700 dark:text-gray-100"
             placeholder="0.00"
           />
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Automatically calculated as difference between amount and (units × NAV)</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Optional charge added separately</p>
         </div>
       </form>
 

@@ -8,8 +8,10 @@ const TransactionManager = ({ token, onLogout }) => {
   const [selectedAssetType, setSelectedAssetType] = useState('');
   const [selectedPlatform, setSelectedPlatform] = useState('');
   const [selectedAccount, setSelectedAccount] = useState('');
+  const [selectedScheme, setSelectedScheme] = useState('');
   const [platforms, setPlatforms] = useState([]);
   const [accounts, setAccounts] = useState([]);
+  const [schemes, setSchemes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -18,6 +20,7 @@ const TransactionManager = ({ token, onLogout }) => {
   const [newAssetType, setNewAssetType] = useState('');
   const [newPlatform, setNewPlatform] = useState('');
   const [newAccount, setNewAccount] = useState('');
+  const [newScheme, setNewScheme] = useState('');
   const formRef = useRef(null);
 
   const apiUrl = import.meta.env.VITE_API_URL || '';
@@ -67,18 +70,28 @@ const TransactionManager = ({ token, onLogout }) => {
         const accountsData = await accountsResponse.json();
         setAccounts(accountsData);
       }
+
+      // Fetch schemes
+      const schemesResponse = await fetch(`${apiUrl}/api/schemes`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+      if (schemesResponse.ok) {
+        const schemesData = await schemesResponse.json();
+        setSchemes(schemesData);
+      }
     } catch (err) {
       console.error('Failed to fetch filter options:', err);
     }
   };
 
-  const fetchTransactions = async (assetType = '', platform = '', account = '') => {
+  const fetchTransactions = async (assetType = '', platform = '', account = '', scheme = '') => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (assetType) params.append('assetType', assetType);
       if (platform) params.append('platform', platform);
       if (account) params.append('account', account);
+      if (scheme) params.append('scheme', scheme);
       
       const url = params.toString() 
         ? `${apiUrl}/api/transactions?${params.toString()}`
@@ -102,20 +115,23 @@ const TransactionManager = ({ token, onLogout }) => {
   const handleFilterChange = (filterType, value) => {
     if (filterType === 'assetType') {
       setSelectedAssetType(value);
-      fetchTransactions(value, selectedPlatform, selectedAccount);
+      fetchTransactions(value, selectedPlatform, selectedAccount, selectedScheme);
     } else if (filterType === 'platform') {
       setSelectedPlatform(value);
-      fetchTransactions(selectedAssetType, value, selectedAccount);
+      fetchTransactions(selectedAssetType, value, selectedAccount, selectedScheme);
     } else if (filterType === 'account') {
       setSelectedAccount(value);
-      fetchTransactions(selectedAssetType, selectedPlatform, value);
+      fetchTransactions(selectedAssetType, selectedPlatform, value, selectedScheme);
+    } else if (filterType === 'scheme') {
+      setSelectedScheme(value);
+      fetchTransactions(selectedAssetType, selectedPlatform, selectedAccount, value);
     }
   };
 
   const handleTransactionAdded = () => {
     setShowForm(false);
     setEditingTransaction(null);
-    fetchTransactions(selectedAssetType, selectedPlatform, selectedAccount);
+    fetchTransactions(selectedAssetType, selectedPlatform, selectedAccount, selectedScheme);
     fetchFilterOptions(); // Refresh filter options
   };
 
@@ -136,7 +152,7 @@ const TransactionManager = ({ token, onLogout }) => {
       });
 
       if (response.ok) {
-        fetchTransactions(selectedAssetType, selectedPlatform, selectedAccount);
+        fetchTransactions(selectedAssetType, selectedPlatform, selectedAccount, selectedScheme);
         fetchFilterOptions(); // Refresh filter options
       }
     } catch (err) {
@@ -266,12 +282,52 @@ const TransactionManager = ({ token, onLogout }) => {
     }
   };
 
+  const handleAddScheme = async () => {
+    if (!newScheme.trim()) return;
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/schemes`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: newScheme.trim() }),
+      });
+
+      if (response.ok) {
+        setNewScheme('');
+        fetchFilterOptions();
+      }
+    } catch (err) {
+      console.error('Failed to add scheme:', err);
+    }
+  };
+
+  const handleDeleteScheme = async (id) => {
+    if (!confirm('Are you sure you want to remove this scheme?')) return;
+    
+    try {
+      const response = await fetch(`${apiUrl}/api/schemes/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        fetchFilterOptions();
+      }
+    } catch (err) {
+      console.error('Failed to delete scheme:', err);
+    }
+  };
+
   // Calculate summary statistics
   const calculateSummary = () => {
     const summary = {
       total: 0,
       totalBrokerage: 0,
-      byAssetType: {}
+      byAssetType: {},
+      brokerageByAssetType: {}
     };
 
     transactions.forEach(transaction => {
@@ -285,8 +341,10 @@ const TransactionManager = ({ token, onLogout }) => {
 
       if (!summary.byAssetType[transaction.asset_type]) {
         summary.byAssetType[transaction.asset_type] = 0;
+        summary.brokerageByAssetType[transaction.asset_type] = 0;
       }
       summary.byAssetType[transaction.asset_type] += value;
+      summary.brokerageByAssetType[transaction.asset_type] += brokerage * multiplier;
     });
 
     return summary;
@@ -369,6 +427,7 @@ const TransactionManager = ({ token, onLogout }) => {
                   'Fixed Deposits': 'from-orange-500 to-orange-600'
                 };
                 const bgColor = colors[assetType] || 'from-gray-500 to-gray-600';
+                const assetBrokerage = summary.brokerageByAssetType[assetType] || 0;
                 
                 return (
                   <div key={assetType} className={`bg-gradient-to-br ${bgColor} rounded-lg shadow-md p-4 text-white`}>
@@ -377,6 +436,7 @@ const TransactionManager = ({ token, onLogout }) => {
                     <div className="text-xs opacity-75 mt-1">
                       {summary.total > 0 ? ((amount / summary.total) * 100).toFixed(1) : '0.0'}% of total
                     </div>
+                    <div className="text-xs opacity-75 mt-2">Brokerage: ₹{assetBrokerage.toFixed(2)}</div>
                   </div>
                 );
               })}
@@ -416,6 +476,17 @@ const TransactionManager = ({ token, onLogout }) => {
             <option value="">All Accounts</option>
             {accounts.map((account) => (
               <option key={account.id} value={account.name}>{account.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={selectedScheme}
+            onChange={(e) => handleFilterChange('scheme', e.target.value)}
+            className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-base bg-white dark:bg-gray-800 dark:text-gray-100"
+          >
+            <option value="">All Schemes</option>
+            {schemes.map((scheme) => (
+              <option key={scheme.id} value={scheme.name}>{scheme.name}</option>
             ))}
           </select>
           
@@ -789,6 +860,42 @@ const TransactionManager = ({ token, onLogout }) => {
                       <span className="text-sm text-gray-700 dark:text-gray-300">{account.name}</span>
                       <button
                         onClick={() => handleDeleteAccount(account.id)}
+                        className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Schemes Section */}
+              <div className="mb-4">
+                <h4 className="text-md font-semibold text-gray-700 dark:text-gray-300 mb-3">Schemes</h4>
+                <div className="flex gap-2 mb-3">
+                  <input
+                    type="text"
+                    value={newScheme}
+                    onChange={(e) => setNewScheme(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && handleAddScheme()}
+                    placeholder="Add new scheme"
+                    className="flex-1 px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-gray-100"
+                  />
+                  <button
+                    onClick={handleAddScheme}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
+                  >
+                    Add
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {schemes.map((scheme) => (
+                    <div key={scheme.id} className="flex items-center justify-between px-3 py-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{scheme.name}</span>
+                      <button
+                        onClick={() => handleDeleteScheme(scheme.id)}
                         className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
