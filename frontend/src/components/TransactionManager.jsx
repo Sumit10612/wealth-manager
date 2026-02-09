@@ -142,6 +142,15 @@ const TransactionManager = ({ token, onLogout }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleCopy = (transaction) => {
+    // Create a copy without the id so it becomes a new transaction
+    const { id, created_at, ...transactionData } = transaction;
+    setEditingTransaction(transactionData);
+    setShowForm(true);
+    // Scroll to top on mobile to show form
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const handleDelete = async (id) => {
     if (!confirm('Are you sure you want to delete this transaction?')) return;
 
@@ -530,6 +539,7 @@ const TransactionManager = ({ token, onLogout }) => {
           transactions={transactions}
           isLoading={isLoading}
           onEdit={handleEdit}
+          onCopy={handleCopy}
           onDelete={handleDelete}
         />
       </main>

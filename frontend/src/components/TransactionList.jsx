@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-const TransactionList = ({ transactions, isLoading, onEdit, onDelete }) => {
+const TransactionList = ({ transactions, isLoading, onEdit, onCopy, onDelete }) => {
   const [longPressMenu, setLongPressMenu] = useState(null);
   const [touchStartTime, setTouchStartTime] = useState(null);
   const [touchStartPos, setTouchStartPos] = useState(null);
@@ -111,6 +111,12 @@ const TransactionList = ({ transactions, isLoading, onEdit, onDelete }) => {
                       Edit
                     </button>
                     <button
+                      onClick={() => onCopy(transaction)}
+                      className="text-green-600 hover:text-green-800 font-semibold text-sm"
+                    >
+                      Copy
+                    </button>
+                    <button
                       onClick={() => onDelete(transaction.id)}
                       className="text-red-600 hover:text-red-800 font-semibold text-sm"
                     >
@@ -177,6 +183,15 @@ const TransactionList = ({ transactions, isLoading, onEdit, onDelete }) => {
                   className="flex-1 text-blue-600 hover:text-blue-800 font-semibold text-sm py-1"
                 >
                   Edit
+                </button>
+                <button
+                  onClick={() => {
+                    onCopy(transaction);
+                    closeLongPressMenu();
+                  }}
+                  className="flex-1 text-green-600 hover:text-green-800 font-semibold text-sm py-1"
+                >
+                  Copy
                 </button>
                 <button
                   onClick={() => {

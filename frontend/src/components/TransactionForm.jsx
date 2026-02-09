@@ -108,8 +108,8 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
     setIsLoading(true);
 
     try {
-      const method = transaction ? 'PUT' : 'POST';
-      const url = transaction
+      const method = transaction?.id ? 'PUT' : 'POST';
+      const url = transaction?.id
         ? `${apiUrl}/api/transactions/${transaction.id}`
         : `${apiUrl}/api/transactions`;
 
@@ -138,7 +138,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-8">
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-6">
-        {transaction ? 'Edit Transaction' : 'Add New Transaction'}
+        {transaction?.id ? 'Edit Transaction' : transaction ? 'Copy Transaction' : 'Add New Transaction'}
       </h2>
 
       <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -317,7 +317,7 @@ const TransactionForm = ({ token, assetTypes, transaction, onSuccess, onCancel }
           disabled={isLoading}
           className="flex-1 bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white font-bold py-3 px-4 rounded-lg transition duration-200 text-base"
         >
-          {isLoading ? 'Saving...' : (transaction ? 'Update Transaction' : 'Add Transaction')}
+          {isLoading ? 'Saving...' : (transaction?.id ? 'Update Transaction' : 'Add Transaction')}
         </button>
         <button
           onClick={onCancel}
